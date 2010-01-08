@@ -1,7 +1,7 @@
 package VANAMBURG::SEMPROG::SimpleGraph;
 
 use vars qw($VERSION);
-$VERSION = '0.003';
+$VERSION = '0.004';
 
 use Moose;
 use Text::CSV_XS;
@@ -10,7 +10,7 @@ use List::MoreUtils qw(each_array);
 
 use English;
 
-use Data::Dumper;
+
 
 #
 # Store triples in nested hashrefs with a Set::Scalar instance
@@ -238,8 +238,6 @@ sub query
 
     my @trpl_inx = (0 .. 2);
 
-    $DB::single = 2;
-
     for my $clause (@$clauses)
     {
         my %bpos;
@@ -310,13 +308,10 @@ sub query
                     }
                     if ($validmatch)
                     {
-                        $DB::single = 2;
                         push @newb, \%tempbinding;
                     }
 
                 }
-                $DB::single = 2;
-
             }
             @bindings = @newb;
         }
