@@ -33,6 +33,8 @@ __PACKAGE__->meta->make_immutable;
 
 __END__
 
+=head1 WestCoastRule
+
 =head2 getqueries
 
   Returns array of queries. Each query is an array ref.

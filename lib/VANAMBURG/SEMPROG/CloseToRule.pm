@@ -71,10 +71,7 @@ no Moose;
 __END__;
 
 
-=head1 GeocodeRule
-
-A rule to retrieve  latitude and longitude for addresses and adds
-two triples to the store.
+=head1 CloseToRule
 
 =head2 BUILD
 
