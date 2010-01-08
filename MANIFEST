@@ -2,11 +2,8 @@ Changes
 MANIFEST
 Makefile.PL
 README
-lib/VANAMBURG/SEMPROG.pm
 t/00-load.t
-t/boilerplate.t
 t/pod-coverage.t
-t/pod.t
 t/semprog_ch02_03_places.t
 t/semprog_ch02_04_celebs.t
 t/semprog_ch02_05_business.t

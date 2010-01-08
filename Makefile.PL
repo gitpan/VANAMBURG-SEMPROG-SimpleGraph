@@ -6,7 +6,7 @@ WriteMakefile(
     NAME                => 'VANAMBURG::SEMPROG::SimpleGraph',
     AUTHOR              => 'Gordon Van Amburg <vanamburg@cpan.org>',
     VERSION_FROM        => 'lib/VANAMBURG/SEMPROG/SimpleGraph.pm',
-    ABSTRACT       => 'A Perl companion to chapters 2 and 3 of the book Programming The Semantic Web',
+    ABSTRACT       => 'A Perl companion "Programming The Semantic Web"',
     PL_FILES            => {},
     PREREQ_PM => {
         'Test::More' => 0,
