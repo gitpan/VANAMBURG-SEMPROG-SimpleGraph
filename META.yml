@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:               VANAMBURG-SEMPROG-SimpleGraph
-version:            0.001
+version:            0.002
 abstract:           A Perl companion to chapters 2 and 3 of the book Programming The Semantic Web
 author:
     - Gordon Van Amburg <vanamburg@cpan.org>

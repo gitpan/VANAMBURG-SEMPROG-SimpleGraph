@@ -1,7 +1,7 @@
 package VANAMBURG::SEMPROG::SimpleGraph;
 
 use vars qw($VERSION);
-$VERSION = '0.001';
+$VERSION = '0.002';
 
 use Moose;
 use Text::CSV_XS;
@@ -346,6 +346,34 @@ __END__
 =head1 SYNOPSIS
 
 A Perl interpretation of the SimpleGraph developed in Python by Toby Segaran in his book "Programming the Semantic Web", published by O'Reilly, 2009.  CPAN modules are used in place of the Python standard library modules used by Mr. Segaran.
+
+    my $graph = VANAMBURG::SEMPROG::SimpleGraph->new();
+
+    $graph->load("data/place_triples.txt");
+
+    $graph->add("Morgan Stanley", "headquarters", "New_York_New_York");
+
+    my @sanfran_key = $graph->value({
+       sub=>undef, pred=>'name', obj=>'San Francisco'
+    });
+
+    my @sanfran_triples = $graph->triples($sanfram_key, undef, undef);
+
+    my @bindings = $g->query([
+       ['?company', 'headquarters', 'New_York_New_York'],
+       ['?company', 'industry',     'Investment Banking'],
+       ['?contrib', 'contributor',  '?company'],
+       ['?contrib', 'recipient',    'Orrin Hatch'],
+       ['?contrib', 'amount',       '?dollars'],
+    ]);
+
+    for my $binding (@bindings){
+       printf "company=%s, contrib=%s, dollars=%s\n", 
+           ($binding->{company},$binding->{contrib},$binding->{dollars});
+    }
+    
+
+    $graph->applyinference( VANAMBURG::SEMPROG::GeocodeRule->new() );
 
 
 =head1 SimpleGraph
