@@ -1,4 +1,4 @@
-#!perl 
+#!perlg 
 
 use Test::More tests => 3;
 use Modern::Perl;
@@ -104,21 +104,9 @@ Converts actor name to id and calls movie_breadth_first_search.
 sub find_path {
     my ( $start, $end, $graph ) = @_;
 
-    my $startId = $graph->value(
-        {
-            sub  => undef,
-            pred => 'name',
-            obj  => $start
-        }
-    );
+    my $startId = $graph->value(undef, 'name', $start);
 
-    my $endId = $graph->value(
-        {
-            sub  => undef,
-            pred => 'name',
-            obj  => $end,
-        }
-    );
+    my $endId = $graph->value(undef, 'name', $end);
 
     my ( $distance, $path ) =
       movie_breadth_first_search( $startId, $endId, $graph );
@@ -126,7 +114,7 @@ sub find_path {
     while ( defined($path) ) {
         my ( $id, $nextPath ) = @{$path};
         push @names,
-          $graph->value( { sub => $id, pred => 'name', obj => undef } );
+          $graph->value($id, 'name', undef);
         $path = $nextPath;
     }
     return ( $distance, \@names );

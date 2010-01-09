@@ -78,7 +78,7 @@ ok( @gtriples == 1, 'removed additional member of object set');
 # ------------------------------------------------------------- #
 # TEST THE VALUE METHOD
 # ------------------------------------------------------------- #
-my $x = $g->value(undef, 'add', 'triple');
+my $x = $g->value(undef,'add', 'triple1');
 ok($x eq 'gordon', 'found the value');
 
 
@@ -89,7 +89,7 @@ ok($x eq 'gordon', 'found the value');
 my $g2 = VANAMBURG::SEMPROG::SimpleGraph->new();
 $g2->load("data/DC_addresses.csv");
 
-my $pot_belly_cost = $g2->value({sub=>"Pot Belly", pred=>"cost", obj=>undef});
+my $pot_belly_cost = $g2->value("Pot Belly", "cost", undef);
 diag (">>> pot_belly_cost is $pot_belly_cost");
 
 ok ($pot_belly_cost eq "cheap", 'pot belly cost correct');

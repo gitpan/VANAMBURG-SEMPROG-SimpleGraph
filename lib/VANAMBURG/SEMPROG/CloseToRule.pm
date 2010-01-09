@@ -38,18 +38,13 @@ sub BUILD{
     my $self = shift;
     
     $self->latitude(
-	$self->graph->value({
-	    sub  => $self->place, 
-	    pred => 'latitude', 
-	    obj  => undef  })
+	$self->graph->value($self->place, 'latitude',undef)
 	);
     
     $self->longitude(
-	$self->graph->value({
-	    sub => $self->place, 
-	    pred=> 'longitude', 
-	    obj => undef   })
+	$self->graph->value($self->place, 'longitude', undef)
 	);
+
 
 }
 

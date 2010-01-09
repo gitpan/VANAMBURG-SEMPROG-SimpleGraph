@@ -1,7 +1,7 @@
 package VANAMBURG::SEMPROG::SimpleGraph;
 
 use vars qw($VERSION);
-$VERSION = '0.005';
+$VERSION = '0.006';
 
 use Moose;
 use Text::CSV_XS;
@@ -14,12 +14,16 @@ use English;
 
 #
 # Store triples in nested hashrefs with a Set::Scalar instance
-# at the leafe nodes.
+# at the leaf nodes.
 # Keep several hashes for accessing based on need
 # in calls to 'triples' method.  Three indexes are:
-#   1) subject, then predicate then object, or
-#   2) predicate, object, then subject,
-#   3) object, then subject then predicate.
+#   1) subject, then predicate then object set, or
+#   2) predicate, object, then subject set,
+#   3) object, then subject then predicate set.
+#
+# example: 
+#
+#    my $obj_set = $self->_spo()->{sub}->{pred};
 #
 
 has '_spo' => (isa => 'HashRef', is => 'rw', default => sub { {} });
@@ -115,8 +119,8 @@ sub triples
             # sub undef obj
             if (defined($obj) && defined($self->_osp()->{$obj}->{$sub}))
             {
-                map { push @result, [$sub, $obj, $_]; }
-                  $self->_osp()->{$obj}->{$sub}->members();
+                push @result, [$sub, $obj, $_]
+                  for $self->_osp()->{$obj}->{$sub}->members();
             }
             else
             {
@@ -124,8 +128,8 @@ sub triples
                 # sub undef undef
                 while (my ($retPred, $objSet) = each %{$self->_spo()->{$sub}})
                 {
-                    map { push @result, [$sub, $retPred, $_]; }
-                      $objSet->members();
+                    push @result, [$sub, $retPred, $_]
+			for $objSet->members();
                 }
             }
         }
@@ -149,8 +153,8 @@ sub triples
                 # undef pred undef
                 while (my ($retObj, $subSet) = each %{$self->_pos()->{$pred}})
                 {
-                    map { push @result, [$_, $pred, $retObj]; }
-                      $subSet->members();
+                    push @result, [$_, $pred, $retObj]
+			for $subSet->members();
                 }
             }
         }
@@ -162,20 +166,20 @@ sub triples
             {
                 while (my ($retSub, $predSet) = each %{$self->_osp()->{$obj}})
                 {
-                    map { push @result, [$retSub, $_, $obj]; }
-                      $predSet->members();
+                    push @result, [$retSub, $_, $obj]
+			for $predSet->members();
                 }
             }
             else
             {
 
                 # undef undef undef
-                while (my ($retSub, $predSet) = each %{$self->_spo()})
+                while (my ($retSub, $predHash) = each %{$self->_spo()})
                 {
-                    while (my ($retPred, $objSet) = each %{$predSet})
+                    while (my ($retPred, $objSet) = each %{$predHash})
                     {
-                        map { push @result, [$retSub, $retPred, $_]; }
-                          $objSet->members();
+                        push @result, [$retSub, $retPred, $_]
+			    for $objSet->members();
                     }
                 }
             }
@@ -188,13 +192,13 @@ sub triples
 
 sub value
 {
-    my ($self, $kwargs) = @ARG;
+    my ($self, $sub, $pred, $obj) = @ARG;
 
-    for my $t ($self->triples($kwargs->{sub}, $kwargs->{pred}, $kwargs->{obj}))
+    for my $t ($self->triples($sub, $pred, $obj))
     {
-        return $t->[0] if !defined($kwargs->{sub});
-        return $t->[1] if !defined($kwargs->{pred});
-        return $t->[2] if !defined($kwargs->{obj});
+        return $t->[0] if !defined($sub);
+        return $t->[1] if !defined($pred);
+        return $t->[2] if !defined($obj);
         last;
     }
 }
@@ -220,13 +224,18 @@ sub load
 sub save
 {
     my ($self, $filename) = @ARG;
+
     open my $fh, ">", $filename or die "Cannot open file for save: $!";
+
     my $csv = Text::CSV_XS->new({allow_whitespace => 1, blank_is_undef => 1})
       or die "Cannot use CSV: " . Text::CSV_XS->error_diag();
+
     $csv->eol("\r\n");
+    
     $csv->print($fh, $_)
-      or csv->error_diag()
-      for $self->triples(undef, undef, undef);
+	or csv->error_diag()
+	for $self->triples(undef, undef, undef);
+
     close $fh or die "Cannot close file for save: $!";
 }
 
@@ -348,9 +357,7 @@ A Perl interpretation of the SimpleGraph developed in Python by Toby Segaran in 
 
     $graph->add("Morgan Stanley", "headquarters", "New_York_New_York");
 
-    my @sanfran_key = $graph->value({
-       sub=>undef, pred=>'name', obj=>'San Francisco'
-    });
+    my @sanfran_key = $graph->value(undef,'name','San Francisco');
 
     my @sanfran_triples = $graph->triples($sanfram_key, undef, undef);
 
@@ -469,10 +476,10 @@ Remove a triple pattern from the graph.
     my @triples = $g->triples(undef, "inside", undef);
 
     # @triples looks like this:
-    #  [ 
+    #  ( 
     #    ["San Francisco", "inside", "California"],
     #    ["Ann Arbor", "inside", "Michigan"],
-    #  ]
+    #  )
 
 =head2 value
 

@@ -13,7 +13,6 @@ t/semprog_ch03_02_inference.t
 t/semprog_ch03_03_chain_of_rules.t
 t/semprog_ch03_04_shortest_path.t
 t/semprog_ch03_05_join_graph.t
-t/semprog_ch03_chain_of_rules.t
 lib/VANAMBURG/SEMPROG/CloseToRule.pm
 lib/VANAMBURG/SEMPROG/GeocodeRule.pm
 lib/VANAMBURG/SEMPROG/InferenceRule.pm
