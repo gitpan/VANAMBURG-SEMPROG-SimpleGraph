@@ -1,42 +1,31 @@
-package VANAMBURG::SEMPROG::GeocodeRule;
+use MooseX::Declare;
 
-use Moose;
-use LWP::Simple qw/get/;
-use URI::Escape qw/uri_escape/;
-use English qw/ARG/;
+class VANAMBURG::SEMPROG::GeocodeRule
+    with VANAMBURG::SEMPROG::InferenceRule{
 
-sub getqueries
-{
-    my ($self) = shift;
+    use LWP::Simple qw/get/;
+    use URI::Escape qw/uri_escape/;
+    use English qw/ARG/;
 
-    return [ ['?place', 'address', '?address'] ];
+    method getqueries()
+    {
+	return [ ['?place', 'address', '?address'] ];
+    }
+
+
+    method maketriples($binding)
+    {
+	my $address = uri_escape($binding->{address});
+	my $geo_result = get("http://rpc.geocoder.us/service/csv?address=$address");
+	my ($longitude, $latitude) = split ',', $geo_result;
+
+	return [
+	    [$binding->{place}, 'longitude', $longitude],
+	    [$binding->{place},  'latitude', $latitude],
+	    ];
+    }
+
 }
-
-
-sub maketriples
-{
-    my ($self, $binding) = @ARG;
-    
-    my $address = uri_escape($binding->{address});
-    
-    my $geo_result = get("http://rpc.geocoder.us/service/csv?address=$address");
-    
-    my ($longitude, $latitude) = split ',', $geo_result;
-    
-    return [
-	[$binding->{place}, 'longitude', $longitude],
-	[$binding->{place},  'latitude', $latitude],
-	];
-}
-
-
-with 'VANAMBURG::SEMPROG::InferenceRule';
-
-
-# make moose fast and return a positive 
-# value as required by perl for modules.
-__PACKAGE__->meta->make_immutable;
-1;
 
 
 __END__;

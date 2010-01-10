@@ -1,355 +1,258 @@
-package VANAMBURG::SEMPROG::SimpleGraph;
 
-use vars qw($VERSION);
-$VERSION = '0.006';
-
-use Moose;
-use Text::CSV_XS;
-use Set::Scalar;
-use List::MoreUtils qw(each_array);
-
-use English;
+use MooseX::Declare;
 
 
+class VANAMBURG::SEMPROG::SimpleGraph{
 
-#
-# Store triples in nested hashrefs with a Set::Scalar instance
-# at the leaf nodes.
-# Keep several hashes for accessing based on need
-# in calls to 'triples' method.  Three indexes are:
-#   1) subject, then predicate then object set, or
-#   2) predicate, object, then subject set,
-#   3) object, then subject then predicate set.
-#
-# example: 
-#
-#    my $obj_set = $self->_spo()->{sub}->{pred};
-#
+    use vars qw($VERSION);
+    $VERSION = '0.007';
 
-has '_spo' => (isa => 'HashRef', is => 'rw', default => sub { {} });
-has '_pos' => (isa => 'HashRef', is => 'rw', default => sub { {} });
-has '_osp' => (isa => 'HashRef', is => 'rw', default => sub { {} });
+    use Text::CSV_XS;
+    use Set::Scalar;
+    use List::MoreUtils qw(each_array);
 
-sub add
-{
-    my ($self, $sub, $pred, $obj) = @_;
+    # sub, pred, object set index for triple store.
+    has '_spo' => (isa => 'HashRef', is => 'rw', default => sub { {} });
 
-    $self->_addToIndex($self->_spo(), $sub,  $pred, $obj);
-    $self->_addToIndex($self->_pos(), $pred, $obj,  $sub);
-    $self->_addToIndex($self->_osp(), $obj,  $sub,  $pred);
-}
+    # pred, obj, subject set index for triple store.
+    has '_pos' => (isa => 'HashRef', is => 'rw', default => sub { {} });
 
-sub _addToIndex
-{
-    my ($self, $index, $a, $b, $c) = @ARG;
+    # obj, sub, predicate set index for triple store.
+    has '_osp' => (isa => 'HashRef', is => 'rw', default => sub { {} });
 
-    return if (!defined($a) || !defined($b) || !defined($c));
-
-    if (!defined($index->{$a}->{$b}))
+    method add($sub?, $pred?, $obj?)
     {
-        my $set = Set::Scalar->new();
-        $set->insert($c);
-        $index->{$a}->{$b} = $set;
-    }
-    else
-    {
-        $index->{$a}->{$b}->insert($c);
-    }
-}
-
-sub remove
-{
-    my ($self, $sub, $pred, $obj) = @ARG;
-
-    my @tripls = $self->triples($sub, $pred, $obj);
-    for my $t (@tripls)
-    {
-        $self->_removeFromIndex($self->_spo(), $t->[0], $t->[1], $t->[2]);
-        $self->_removeFromIndex($self->_pos(), $t->[1], $t->[2], $t->[0]);
-        $self->_removeFromIndex($self->_osp(), $t->[2], $t->[0], $t->[1]);
-    }
-}
-
-sub _removeFromIndex
-{
-    my ($self, $index, $a, $b, $c) = @ARG;
-
-    eval {
-        my $bs   = $index->{$a};
-        my $cset = $bs->{$b};
-        $cset->delete($c);
-        delete $bs->{$b} if ($cset->size == 0);
-        delete $index->{$a} if (keys(%$bs) == 0);
-    };
-    if ($EVAL_ERROR) { print "ERROR: $EVAL_ERROR\n"; }
-}
-
-sub triples
-{
-    my ($self, $sub, $pred, $obj) = @ARG;
-
-    my @result;
-
-    # check which terms are present in order to use the correct index:
-
-    if (defined($sub))
-    {
-        if (defined($pred))
-        {
-
-            # sub pred obj
-            if (defined($obj) && defined($self->_spo()->{$sub}->{$pred}))
-            {
-                push @result, [$sub, $pred, $obj]
-                  if ($self->_spo()->{$sub}->{$pred}->has($obj));
-
-            }
-            else
-            {
-
-                # sub pred undef
-                map { push @result, [$sub, $pred, $_]; }
-                  $self->_spo()->{$sub}->{$pred}->members()
-                  if defined($self->_spo()->{$sub}->{$pred});
-            }
-        }
-        else
-        {
-
-            # sub undef obj
-            if (defined($obj) && defined($self->_osp()->{$obj}->{$sub}))
-            {
-                push @result, [$sub, $obj, $_]
-                  for $self->_osp()->{$obj}->{$sub}->members();
-            }
-            else
-            {
-
-                # sub undef undef
-                while (my ($retPred, $objSet) = each %{$self->_spo()->{$sub}})
-                {
-                    push @result, [$sub, $retPred, $_]
-			for $objSet->members();
-                }
-            }
-        }
-    }
-    else
-    {
-        if (defined($pred))
-        {
-
-            # undef pred obj
-            if (defined($obj))
-            {
-
-                map { push @result, [$_, $pred, $obj] }
-                  $self->_pos()->{$pred}->{$obj}->members()
-                  if (defined($self->_pos()->{$pred}->{$obj}));
-            }
-            else
-            {
-
-                # undef pred undef
-                while (my ($retObj, $subSet) = each %{$self->_pos()->{$pred}})
-                {
-                    push @result, [$_, $pred, $retObj]
-			for $subSet->members();
-                }
-            }
-        }
-        else
-        {
-
-            # undef undef obj
-            if (defined($obj))
-            {
-                while (my ($retSub, $predSet) = each %{$self->_osp()->{$obj}})
-                {
-                    push @result, [$retSub, $_, $obj]
-			for $predSet->members();
-                }
-            }
-            else
-            {
-
-                # undef undef undef
-                while (my ($retSub, $predHash) = each %{$self->_spo()})
-                {
-                    while (my ($retPred, $objSet) = each %{$predHash})
-                    {
-                        push @result, [$retSub, $retPred, $_]
-			    for $objSet->members();
-                    }
-                }
-            }
-        }
-
+      $self->_addToIndex($self->_spo(), $sub,  $pred, $obj);
+      $self->_addToIndex($self->_pos(), $pred, $obj,  $sub);
+      $self->_addToIndex($self->_osp(), $obj,  $sub,  $pred);
     }
 
-    return @result;
-}
-
-sub value
-{
-    my ($self, $sub, $pred, $obj) = @ARG;
-
-    for my $t ($self->triples($sub, $pred, $obj))
+    method _addToIndex($index, $a, $b, $c)
     {
-        return $t->[0] if !defined($sub);
-        return $t->[1] if !defined($pred);
-        return $t->[2] if !defined($obj);
-        last;
-    }
-}
-
-sub load
-{
-    my ($self, $filename) = @ARG;
-
-    my $csv = Text::CSV_XS->new(
-                      {allow_whitespace => 1, binary => 1, blank_is_undef => 1})
-      or die "Cannot use CSV: " . Text::CSV_XS->error_diag();
-
-    open my $fh, "<:encoding(utf8)", $filename or die "$!";
-
-    while (my $row = $csv->getline($fh))
-    {
-        $self->add($row->[0], $row->[1], $row->[2]);
-    }
-
-    close $fh or die "$!";
-}
-
-sub save
-{
-    my ($self, $filename) = @ARG;
-
-    open my $fh, ">", $filename or die "Cannot open file for save: $!";
-
-    my $csv = Text::CSV_XS->new({allow_whitespace => 1, blank_is_undef => 1})
-      or die "Cannot use CSV: " . Text::CSV_XS->error_diag();
-
-    $csv->eol("\r\n");
-    
-    $csv->print($fh, $_)
-	or csv->error_diag()
-	for $self->triples(undef, undef, undef);
-
-    close $fh or die "Cannot close file for save: $!";
-}
-
-sub query
-{
-    my ($self, $clauses) = @ARG;
-
-    my @bindings;
-
-    my @trpl_inx = (0 .. 2);
-
-    for my $clause (@$clauses)
-    {
-        my %bpos;
-        my @qparams;
-        my @rows;
-
-        # Check each three indexes of clause to see if
-        # it is a binding variable (starts with '?').
-        # Generate a store for the binding variables,
-        # implimented as a hash keyed by binding variable name,
-        # and holding the triple index indicating if it
-        # represents a subject, predicate, or object.
-        #
-        # Also define parameters for subsequent call to
-        # 'triples'.
-
-        my $each = each_array(@$clause, @trpl_inx);
-        while (my ($x, $pos) = $each->())
-        {
-            if ($x =~ /^\?/)
-            {
-                push @qparams, undef;
-                my $key = substr($x, 1);
-                $bpos{$key} = $pos;
-            }
-            else
-            {
-                push @qparams, $x;
-            }
-        }
-
-        @rows = $self->triples($qparams[0], $qparams[1], $qparams[2]);
-        if (!@bindings)
-        {
-            for my $row (@rows)
-            {
-                my %binding;
-                while (my ($var, $pos) = each %bpos)
-                {
-                    $binding{$var} = $row->[$pos];
-                }
-
-                push @bindings, \%binding;
-            }
-        }
-        else
-        {
-            my @newb;
-            for my $binding (@bindings)
-            {
-                for my $row (@rows)
-                {
-                    my $validmatch  = 1;
-                    my %tempbinding = %$binding;
-                    while (my ($var, $pos) = each %bpos)
-                    {
-                        if (defined($tempbinding{$var}))
-                        {
-                            if ($tempbinding{$var} ne $row->[$pos])
-                            {
-                                $validmatch = 0;
-                            }
-                        }
-                        else
-                        {
-                            $tempbinding{$var} = $row->[$pos];
-                        }
-                    }
-                    if ($validmatch)
-                    {
-                        push @newb, \%tempbinding;
-                    }
-
-                }
-            }
-            @bindings = @newb;
-        }
-    }
-    return @bindings;
-}
-
-sub applyinference
-{
-    my ($self, $rule) = @ARG;
-
-    my @bindings = $self->query($rule->getqueries());
-
-    for my $binding (@bindings){
-	for my $triple ( @{$rule->maketriples($binding)} ) {
-	    $self->add( @$triple );
+      if (!defined($index->{$a}->{$b})){
+	  my $set = Set::Scalar->new();
+	  $set->insert($c);
+	  $index->{$a}->{$b} = $set;
+	}
+      else
+	{
+	  $index->{$a}->{$b}->insert($c);
 	}
     }
 
+    method remove($sub?, $pred?, $obj?)
+    {
+      for my $t ($self->triples($sub, $pred, $obj)){
+	  $self->_removeFromIndex($self->_spo(), $t->[0], $t->[1], $t->[2]);
+	  $self->_removeFromIndex($self->_pos(), $t->[1], $t->[2], $t->[0]);
+	  $self->_removeFromIndex($self->_osp(), $t->[2], $t->[0], $t->[1]);
+	}
+    }
+
+    method _removeFromIndex($index, $a, $b, $c)
+    {
+	my $bs   = $index->{$a};
+	my $cset = $bs->{$b};
+	$cset->delete($c);
+	delete $bs->{$b} if ($cset->size == 0);
+	delete $index->{$a} if (keys(%$bs) == 0);
+    }
+
+    method triples($sub?, $pred?, $obj?)
+    {
+      my @result;
+
+      # check which terms are present in order to use the correct index:
+      if (defined($sub)){
+	if (defined($pred)){
+	  # sub pred obj
+	  if (defined($obj) && defined($self->_spo()->{$sub}->{$pred})){
+	    push @result, [$sub, $pred, $obj]
+	      if ($self->_spo()->{$sub}->{$pred}->has($obj));
+	  }else{
+	    # sub pred undef
+	    map { push @result, [$sub, $pred, $_]; }
+	      $self->_spo()->{$sub}->{$pred}->members()
+		if defined($self->_spo()->{$sub}->{$pred});
+	  }
+	}else{
+	  # sub undef obj
+	  if (defined($obj) && defined($self->_osp()->{$obj}->{$sub})){
+	    push @result, [$sub, $obj, $_]
+	      for $self->_osp()->{$obj}->{$sub}->members();
+	  }else{
+	    # sub undef undef
+	    while (my ($retPred, $objSet) = each %{$self->_spo()->{$sub}}){
+	      push @result, [$sub, $retPred, $_]
+		for $objSet->members();
+	    }
+	  }
+	}
+      }else{
+	if (defined($pred)){
+	  # undef pred obj
+	  if (defined($obj)){
+	    map { push @result, [$_, $pred, $obj] }
+	      $self->_pos()->{$pred}->{$obj}->members()
+		if (defined($self->_pos()->{$pred}->{$obj}));
+	  }else{
+	    # undef pred undef
+	    while (my ($retObj, $subSet) = each %{$self->_pos()->{$pred}}){
+	      push @result, [$_, $pred, $retObj]
+		for $subSet->members();
+	    }
+	  }
+	}else{
+	  # undef undef obj
+	  if (defined($obj)){
+	    while (my ($retSub, $predSet) = each %{$self->_osp()->{$obj}}){
+	      push @result, [$retSub, $_, $obj]
+		for $predSet->members();
+	    }
+	  }else{
+	    # undef undef undef
+	    while (my ($retSub, $predHash) = each %{$self->_spo()}){
+	      while (my ($retPred, $objSet) = each %{$predHash}){
+		push @result, [$retSub, $retPred, $_]
+		  for $objSet->members();
+	      }
+	    }
+	  }
+	}
+      }
+      return @result;
+    }
+
+    method value($sub?, $pred?, $obj?)
+    {
+      for my $t ($self->triples($sub, $pred, $obj))
+	{
+	  return $t->[0] if !defined($sub);
+	  return $t->[1] if !defined($pred);
+	  return $t->[2] if !defined($obj);
+	  last;
+	}
+    }
+
+    method load($filename)
+    {
+      my $csv = Text::CSV_XS->new({allow_whitespace => 1,
+				   binary => 1,
+				   blank_is_undef => 1})
+	or die "Cannot use CSV: " . Text::CSV_XS->error_diag();
+
+      open my $fh, "<:encoding(utf8)", $filename or die "$!";
+
+      while (my $row = $csv->getline($fh)){
+	$self->add($row->[0], $row->[1], $row->[2]);
+      }
+
+      close $fh or die "$!";
+    }
+
+    method save($filename)
+    {
+      open my $fh, ">", $filename or die "Cannot open file for save: $!";
+
+      my $csv = Text::CSV_XS->new({allow_whitespace => 1,
+				   blank_is_undef => 1})
+	or die "Cannot use CSV: " . Text::CSV_XS->error_diag();
+
+      $csv->eol("\r\n");
+
+      $csv->print($fh, $_)
+	or csv->error_diag()
+	  for $self->triples(undef, undef, undef);
+
+      close $fh or die "Cannot close file for save: $!";
+    }
+
+    method query($clauses)
+    {
+      my @bindings;
+      my @trpl_inx = (0 .. 2);
+
+      for my $clause (@$clauses){
+	my %bpos;
+	my @qparams;
+	my @rows;
+
+	# Check each three indexes of clause to see if
+	# it is a binding variable (starts with '?').
+	# Generate a store for the binding variables,
+	# implimented as a hash keyed by binding variable name,
+	# and holding the triple index indicating if it
+	# represents a subject, predicate, or object.
+	#
+	# Also define parameters for subsequent call to
+	# 'triples'.
+
+	my $each = each_array(@$clause, @trpl_inx);
+	while (my ($x, $pos) = $each->()){
+	  if ($x =~ /^\?/){
+	    push @qparams, undef;
+	    my $key = substr($x, 1);
+	    $bpos{$key} = $pos;
+	  }else{
+	    push @qparams, $x;
+	  }
+	}
+
+	@rows = $self->triples($qparams[0], $qparams[1], $qparams[2]);
+	if (!@bindings){
+	  for my $row (@rows){
+	    my %binding;
+	    while (my ($var, $pos) = each %bpos){
+	      $binding{$var} = $row->[$pos];
+	    }
+	    push @bindings, \%binding;
+	  }
+	}else{
+	  my @newb;
+	  for my $binding (@bindings){
+	    for my $row (@rows){
+	      my $validmatch  = 1;
+	      my %tempbinding = %$binding;
+	      while (my ($var, $pos) = each %bpos){
+		if (defined($tempbinding{$var})){
+		  if ($tempbinding{$var} ne $row->[$pos]){
+		    $validmatch = 0;
+		  }
+		}else{
+		  $tempbinding{$var} = $row->[$pos];
+		}
+	      }
+	      if ($validmatch){
+		push @newb, \%tempbinding;
+	      }
+
+	    }
+	  }
+	  @bindings = @newb;
+	}
+      }
+      return @bindings;
+    }
+
+    method applyinference($rule)
+    {
+      my @bindings = $self->query($rule->getqueries());
+
+      for my $binding (@bindings){
+	for my $triple ( @{$rule->maketriples($binding)} ) {
+	  $self->add( @$triple );
+	}
+      }
+
+    }
+
 }
-
-1;
-
 __END__
 
 
 =head1 SYNOPSIS
 
-A Perl interpretation of the SimpleGraph developed in Python by Toby Segaran in his book "Programming the Semantic Web", published by O'Reilly, 2009.  CPAN modules are used in place of the Python standard library modules used by Mr. Segaran.
+A Perl interpretation of the SimpleGraph developed in Python by Toby Segaran in his book "Programming the Semantic Web", published by O'Reilly, 2009.  This modules code and tests are meant to be used/read with chapters 2 and 3 of that book.  Here, CPAN modules are used in place of the Python standard library modules used by Mr. Segaran's example triple store.
 
     my $graph = VANAMBURG::SEMPROG::SimpleGraph->new();
 
@@ -370,35 +273,34 @@ A Perl interpretation of the SimpleGraph developed in Python by Toby Segaran in 
     ]);
 
     for my $binding (@bindings){
-       printf "company=%s, contrib=%s, dollars=%s\n", 
+       printf "company=%s, contrib=%s, dollars=%s\n",
            ($binding->{company},$binding->{contrib},$binding->{dollars});
     }
-    
 
     $graph->applyinference( VANAMBURG::SEMPROG::GeocodeRule->new() );
 
 
 =head1 SimpleGraph
 
-   
+
 This module and it's test suite is inspired by the simple triple store implimentation
-developed in chapters 2 and 3 of "Programming the Semantic Web" by Toby Segaran, 
-Evans Colin, Taylor Jamie, 2009, O'Reilly.  Mr. Segaran uses Python and 
-it's standard library to show the workins of a triple store.  This module 
-and it's test make the same demonstration using Perl and CPAN modules, which 
+developed in chapters 2 and 3 of "Programming the Semantic Web" by Toby Segaran,
+Evans Colin, Taylor Jamie, 2009, O'Reilly.  Mr. Segaran uses Python and
+it's standard library to show the workins of a triple store.  This module
+and it's test make the same demonstration using Perl and CPAN modules, which
 may be thought of as a Perl companion to the book for readers who are interested in Perl.
 
 In addition to SimpleGraph, the triple store, the other exercises presented in chapters 2 and 3 are here interpreted as a set of perl test programs, using
 Test::More and are found in the modules 't/' directory.
-    
+
 
 B<Triple Store Modules>
 
     lib/VANAMBURG/SEMPROG/SimpleGraph.pm
-    
+
     lib/VANAMBURG/SEMPROG/CloseToRule.pm
     lib/VANAMBURG/SEMPROG/GeocodeRule.pm
-    lib/VANAMBURG/SEMPROG/InferenceRule.pm    
+    lib/VANAMBURG/SEMPROG/InferenceRule.pm
     lib/VANAMBURG/SEMPROG/TouristyRule.pm
     lib/VANAMBURG/SEMPROG/WestCoastRule.pm
 
@@ -418,12 +320,14 @@ B<Module Usage Shown in Tests>
 
 Find out more about, or get the book at http://semprog.com, the Semantic Programming web site.
 
+ The project uses L<Moose> in all versions however, Version 0.007 also uses L<MooseX::Declare> whereas 0.006 and eariler do not.  You may be interested to compare performance.
+
 =head1 INSTALLATION NOTES
 
 This module can be installed via cpan.  This method resolves dependency
-issues and is convenient. In brief, it looks something like this in a 
+issues and is convenient. In brief, it looks something like this in a
 terminal on linux:
- 
+
   $sudo cpan
   cpan>install VANAMBURG::SEMPROG::SimpleGraph
   ...
@@ -434,8 +338,8 @@ All dependencies, as well as the modules are now installed.  Leave out 'sudo' if
 
 You can then download the source package and read and run the test programs.
 
-  $tar xzvf VANAMBURG-SEMPROG-SimpleGraph-0.001.tar.gz
-  $cd VANAMBURG-SEMPROG-SimpleGraph-0.001/  
+  $tar xzvf VANAMBURG-SEMPROG-SimpleGraph-0.00x.tar.gz
+  $cd VANAMBURG-SEMPROG-SimpleGraph-0.00x/
   $ perl Makefile.PL
   ...
   $make
@@ -464,7 +368,7 @@ Adds a triple to the graph.
 
 =head2 remove
 
-Remove a triple pattern from the graph.    
+Remove a triple pattern from the graph.
 
     # remove all triples with predicate "inside"
     $g->remove(undef, "inside", undef);
@@ -476,7 +380,7 @@ Remove a triple pattern from the graph.
     my @triples = $g->triples(undef, "inside", undef);
 
     # @triples looks like this:
-    #  ( 
+    #  (
     #    ["San Francisco", "inside", "California"],
     #    ["Ann Arbor", "inside", "Michigan"],
     #  )
@@ -507,13 +411,13 @@ Given an InferenceRule, generates additional triples in the triple store.
 
 
 =head2 load
- 
+
 Loads a csv file in utf8 encoding.
 
     $g->load("some/file.csv");
 
 =head2 save
- 
+
 Saves a csv file in utf8 encoding.
 
     $g->load("some/file.csv");
@@ -528,4 +432,4 @@ See source for details.
         Removes a triple from an index and clears up empty indermediate structures.
 
 
-=cut 
+=cut

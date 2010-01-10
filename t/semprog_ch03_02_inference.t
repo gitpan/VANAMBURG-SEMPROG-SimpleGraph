@@ -19,6 +19,8 @@ diag("triples before:\n". Dumper ( @triples_before ) );
 
 ok(@triples_before == 1, 'there is one triple before inference');
 
+diag("getting geo-coding data from web, could take a while...");
+
 my $rule = VANAMBURG::SEMPROG::GeocodeRule->new();
 
 $graph->applyinference($rule);

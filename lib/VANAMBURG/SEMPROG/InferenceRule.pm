@@ -1,4 +1,14 @@
-package VANAMBURG::SEMPROG::InferenceRule;
+use MooseX::Declare;
+
+role VANAMBURG::SEMPROG::InferenceRule{
+
+    requires qw/getqueries maketriples/;
+
+}
+
+
+__END__
+
 
 =head1 VANAMBURG::SEMPROG::InferenceRule
 
@@ -18,10 +28,4 @@ maketriples
 =back
 
 =cut
-
-use Moose::Role;
-
-requires qw/getqueries maketriples/;
-
-1;
 

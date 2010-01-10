@@ -2,4 +2,7 @@ Revision history for VANAMBURG-SEMPROG
 
 0.01    Date/time
         First version, released on an unsuspecting world.
+0.07    Decided that since this is purely educational and/or
+        occasional, that it is best to use MooseX::Declare
+        to push that forward.
 
