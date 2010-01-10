@@ -2,7 +2,8 @@ Revision history for VANAMBURG-SEMPROG
 
 0.01    Date/time
         First version, released on an unsuspecting world.
-0.07    Decided that since this is purely educational and/or
-        occasional, that it is best to use MooseX::Declare
-        to push that forward.
+0.007   Use MooseX::Declare for all class and method
+        declarations. and include NYTProf output
+        in POD.
+0.008   Rollback to 0.006 for performance reasons.
 

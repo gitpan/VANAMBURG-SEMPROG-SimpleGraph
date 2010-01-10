@@ -1,25 +1,37 @@
-use MooseX::Declare;
+package VANAMBURG::SEMPROG::TouristyRule;
 
-class VANAMBURG::SEMPROG::TouristyRule
-    with VANAMBURG::SEMPROG::InferenceRule{
+use Moose;
+use English qw/ARG/;
 
-    method getqueries()
-    {
-	return [
-	    ['?ta', 'is_a', 'Tourist Attraction'],
-	    ['?ta', 'close_to', '?restaurant'],
-	    ['?restaurant', 'is_a', 'restaurant'],
-	    ['?restaurant', 'cost', 'cheap'],
-	    ];
-    }
+sub getqueries
+{
+    my ($self) = @ARG;
 
-
-    method maketriples($binding)
-    {
-	return [[$binding->{restaurant}, 'is_a', 'touristy restaurant']];
-    }
-
+    return [ 
+	['?ta', 'is_a', 'Tourist Attraction'],
+	['?ta', 'close_to', '?restaurant'],
+	['?restaurant', 'is_a', 'restaurant'],
+	['?restaurant', 'cost', 'cheap'],
+	];
 }
+
+
+sub maketriples
+{
+    my ($self, $binding) = @ARG;
+    
+    return [[$binding->{restaurant}, 'is_a', 'touristy restaurant']];
+}
+
+with 'VANAMBURG::SEMPROG::InferenceRule';
+
+# make moose fast and return a positive 
+# value as required by perl for modules.
+__PACKAGE__->meta->make_immutable;
+no Moose;
+
+1; 
+
 
 __END__;
 

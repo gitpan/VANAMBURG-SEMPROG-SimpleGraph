@@ -1,23 +1,35 @@
-use MooseX::Declare;
+package VANAMBURG::SEMPROG::WestCoastRule;
 
-class VANAMBURG::SEMPROG::WestCoastRule
-    with VANAMBURG::SEMPROG::InferenceRule {
+use Moose;
+use English;
 
-    method getqueries()
-    {
-	my @sfoq = qw/?company headquarters San_Francisco_California/;
-	my @seaq = qw/?company headquarters Seattle_Washington/;
-	my @laxq = qw/?company headquarters Los_Angelese_California/;
-	my @porq = qw/?company headquarters Portland_Oregon/;
+sub getqueries
+{
+    my ($self) = shift;
 
-	my @result = (\@sfoq, \@seaq, \@laxq, \@porq);
-	return \@result;
-    }
+    my @sfoq = qw/?company headquarters San_Francisco_California/;
+    my @seaq = qw/?company headquarters Seattle_Washington/;
+    my @laxq = qw/?company headquarters Los_Angelese_California/;
+    my @porq = qw/?company headquarters Portland_Oregon/;
 
-    method maketriples($binding){
-	return [ [$binding->{company}, 'on_coast', 'west_coast'] ];
-    }
+    my @result = (\@sfoq, \@seaq, \@laxq, \@porq);
+    return \@result;
 }
+
+sub maketriples
+{
+    my ($self, $binding) = @ARG;
+
+    return [ [$binding->{company}, 'on_coast', 'west_coast'] ];
+}
+
+with 'VANAMBURG::SEMPROG::InferenceRule';
+
+# make Moose fast;
+__PACKAGE__->meta->make_immutable;
+
+# Perl requires 'true' return from modules.
+1;
 
 __END__
 

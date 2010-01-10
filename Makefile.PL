@@ -18,7 +18,7 @@ WriteMakefile(
 	'Modern::Perl' => 1.03,
 	'LWP::Simple' => 0,
 	'URI::Escape' => 0,
-	'MooseX::Declare' => 0,
+
     },
     dist                => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
     clean               => { FILES => 'VANAMBURG-SEMPROG-*' },
