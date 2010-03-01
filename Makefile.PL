@@ -9,6 +9,7 @@ WriteMakefile(
     ABSTRACT       => 'A Perl companion "Programming The Semantic Web"',
     PL_FILES            => {},
     PREREQ_PM => {
+	'JSON' => 0,
         'Test::More' => 0,
 	'Text::CSV_XS' => 0,
 	'Moose' => 0.93,

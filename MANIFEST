@@ -13,12 +13,14 @@ t/semprog_ch03_02_inference.t
 t/semprog_ch03_03_chain_of_rules.t
 t/semprog_ch03_04_shortest_path.t
 t/semprog_ch03_05_join_graph.t
+bin/graphtools.pl
 lib/VANAMBURG/SEMPROG/CloseToRule.pm
 lib/VANAMBURG/SEMPROG/GeocodeRule.pm
 lib/VANAMBURG/SEMPROG/InferenceRule.pm
 lib/VANAMBURG/SEMPROG/SimpleGraph.pm
 lib/VANAMBURG/SEMPROG/TouristyRule.pm
 lib/VANAMBURG/SEMPROG/WestCoastRule.pm
+lib/VANAMBURG/SEMPROG/graphtools.pm
 data/business_triples.csv
 data/celeb_triples.csv
 data/DC_addresses.csv

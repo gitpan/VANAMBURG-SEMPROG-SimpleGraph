@@ -1,16 +1,16 @@
 package VANAMBURG::SEMPROG::SimpleGraph;
 
 use vars qw($VERSION);
-$VERSION = '0.008';
+$VERSION = '0.009';
 
 use Moose;
 use Text::CSV_XS;
 use Set::Scalar;
 use List::MoreUtils qw(each_array);
+use JSON;
+use File::Slurp;
 
 use English;
-
-
 
 #
 # Store triples in nested hashrefs with a Set::Scalar instance
@@ -21,165 +21,141 @@ use English;
 #   2) predicate, object, then subject set,
 #   3) object, then subject then predicate set.
 #
-# example: 
+# example:
 #
 #    my $obj_set = $self->_spo()->{sub}->{pred};
 #
 
-has '_spo' => (isa => 'HashRef', is => 'rw', default => sub { {} });
-has '_pos' => (isa => 'HashRef', is => 'rw', default => sub { {} });
-has '_osp' => (isa => 'HashRef', is => 'rw', default => sub { {} });
+has '_spo' => ( isa => 'HashRef', is => 'rw', default => sub { {} } );
+has '_pos' => ( isa => 'HashRef', is => 'rw', default => sub { {} } );
+has '_osp' => ( isa => 'HashRef', is => 'rw', default => sub { {} } );
 
-sub add
-{
-    my ($self, $sub, $pred, $obj) = @_;
+sub add {
+    my ( $self, $sub, $pred, $obj ) = @_;
 
-    $self->_addToIndex($self->_spo(), $sub,  $pred, $obj);
-    $self->_addToIndex($self->_pos(), $pred, $obj,  $sub);
-    $self->_addToIndex($self->_osp(), $obj,  $sub,  $pred);
+    $self->_addToIndex( $self->_spo(), $sub,  $pred, $obj );
+    $self->_addToIndex( $self->_pos(), $pred, $obj,  $sub );
+    $self->_addToIndex( $self->_osp(), $obj,  $sub,  $pred );
 }
 
-sub _addToIndex
-{
-    my ($self, $index, $a, $b, $c) = @ARG;
+sub _addToIndex {
+    my ( $self, $index, $a, $b, $c ) = @ARG;
 
-    return if (!defined($a) || !defined($b) || !defined($c));
+    return if ( !defined($a) || !defined($b) || !defined($c) );
 
-    if (!defined($index->{$a}->{$b}))
-    {
+    if ( !defined( $index->{$a}->{$b} ) ) {
         my $set = Set::Scalar->new();
         $set->insert($c);
         $index->{$a}->{$b} = $set;
     }
-    else
-    {
+    else {
         $index->{$a}->{$b}->insert($c);
     }
 }
 
-sub remove
-{
-    my ($self, $sub, $pred, $obj) = @ARG;
+sub remove {
+    my ( $self, $sub, $pred, $obj ) = @ARG;
 
-    my @tripls = $self->triples($sub, $pred, $obj);
-    for my $t (@tripls)
-    {
-        $self->_removeFromIndex($self->_spo(), $t->[0], $t->[1], $t->[2]);
-        $self->_removeFromIndex($self->_pos(), $t->[1], $t->[2], $t->[0]);
-        $self->_removeFromIndex($self->_osp(), $t->[2], $t->[0], $t->[1]);
+    my @tripls = $self->triples( $sub, $pred, $obj );
+    for my $t (@tripls) {
+        $self->_removeFromIndex( $self->_spo(), $t->[0], $t->[1], $t->[2] );
+        $self->_removeFromIndex( $self->_pos(), $t->[1], $t->[2], $t->[0] );
+        $self->_removeFromIndex( $self->_osp(), $t->[2], $t->[0], $t->[1] );
     }
 }
 
-sub _removeFromIndex
-{
-    my ($self, $index, $a, $b, $c) = @ARG;
+sub _removeFromIndex {
+    my ( $self, $index, $a, $b, $c ) = @ARG;
 
     eval {
         my $bs   = $index->{$a};
         my $cset = $bs->{$b};
         $cset->delete($c);
-        delete $bs->{$b} if ($cset->size == 0);
-        delete $index->{$a} if (keys(%$bs) == 0);
+        delete $bs->{$b} if ( $cset->size == 0 );
+        delete $index->{$a} if ( keys(%$bs) == 0 );
     };
     if ($EVAL_ERROR) { print "ERROR: $EVAL_ERROR\n"; }
 }
 
-sub triples
-{
-    my ($self, $sub, $pred, $obj) = @ARG;
+sub triples {
+    my ( $self, $sub, $pred, $obj ) = @ARG;
 
     my @result;
 
     # check which terms are present in order to use the correct index:
 
-    if (defined($sub))
-    {
-        if (defined($pred))
-        {
+    if ( defined($sub) ) {
+        if ( defined($pred) ) {
 
             # sub pred obj
-            if (defined($obj) && defined($self->_spo()->{$sub}->{$pred}))
-            {
-                push @result, [$sub, $pred, $obj]
-                  if ($self->_spo()->{$sub}->{$pred}->has($obj));
+            if ( defined($obj) && defined( $self->_spo()->{$sub}->{$pred} ) ) {
+                push @result, [ $sub, $pred, $obj ]
+                  if ( $self->_spo()->{$sub}->{$pred}->has($obj) );
 
             }
-            else
-            {
+            else {
 
                 # sub pred undef
-                map { push @result, [$sub, $pred, $_]; }
+                map { push @result, [ $sub, $pred, $_ ]; }
                   $self->_spo()->{$sub}->{$pred}->members()
-                  if defined($self->_spo()->{$sub}->{$pred});
+                  if defined( $self->_spo()->{$sub}->{$pred} );
             }
         }
-        else
-        {
+        else {
 
             # sub undef obj
-            if (defined($obj) && defined($self->_osp()->{$obj}->{$sub}))
-            {
-                push @result, [$sub, $obj, $_]
+            if ( defined($obj) && defined( $self->_osp()->{$obj}->{$sub} ) ) {
+                push @result, [ $sub, $obj, $_ ]
                   for $self->_osp()->{$obj}->{$sub}->members();
             }
-            else
-            {
+            else {
 
                 # sub undef undef
-                while (my ($retPred, $objSet) = each %{$self->_spo()->{$sub}})
+                while ( my ( $retPred, $objSet ) =
+                    each %{ $self->_spo()->{$sub} } )
                 {
-                    push @result, [$sub, $retPred, $_]
-			for $objSet->members();
+                    push @result, [ $sub, $retPred, $_ ] for $objSet->members();
                 }
             }
         }
     }
-    else
-    {
-        if (defined($pred))
-        {
+    else {
+        if ( defined($pred) ) {
 
             # undef pred obj
-            if (defined($obj))
-            {
+            if ( defined($obj) ) {
 
-                map { push @result, [$_, $pred, $obj] }
+                map { push @result, [ $_, $pred, $obj ] }
                   $self->_pos()->{$pred}->{$obj}->members()
-                  if (defined($self->_pos()->{$pred}->{$obj}));
+                  if ( defined( $self->_pos()->{$pred}->{$obj} ) );
             }
-            else
-            {
+            else {
 
                 # undef pred undef
-                while (my ($retObj, $subSet) = each %{$self->_pos()->{$pred}})
+                while ( my ( $retObj, $subSet ) =
+                    each %{ $self->_pos()->{$pred} } )
                 {
-                    push @result, [$_, $pred, $retObj]
-			for $subSet->members();
+                    push @result, [ $_, $pred, $retObj ] for $subSet->members();
                 }
             }
         }
-        else
-        {
+        else {
 
             # undef undef obj
-            if (defined($obj))
-            {
-                while (my ($retSub, $predSet) = each %{$self->_osp()->{$obj}})
+            if ( defined($obj) ) {
+                while ( my ( $retSub, $predSet ) =
+                    each %{ $self->_osp()->{$obj} } )
                 {
-                    push @result, [$retSub, $_, $obj]
-			for $predSet->members();
+                    push @result, [ $retSub, $_, $obj ] for $predSet->members();
                 }
             }
-            else
-            {
+            else {
 
                 # undef undef undef
-                while (my ($retSub, $predHash) = each %{$self->_spo()})
-                {
-                    while (my ($retPred, $objSet) = each %{$predHash})
-                    {
-                        push @result, [$retSub, $retPred, $_]
-			    for $objSet->members();
+                while ( my ( $retSub, $predHash ) = each %{ $self->_spo() } ) {
+                    while ( my ( $retPred, $objSet ) = each %{$predHash} ) {
+                        push @result, [ $retSub, $retPred, $_ ]
+                          for $objSet->members();
                     }
                 }
             }
@@ -190,12 +166,10 @@ sub triples
     return @result;
 }
 
-sub value
-{
-    my ($self, $sub, $pred, $obj) = @ARG;
+sub value {
+    my ( $self, $sub, $pred, $obj ) = @ARG;
 
-    for my $t ($self->triples($sub, $pred, $obj))
-    {
+    for my $t ( $self->triples( $sub, $pred, $obj ) ) {
         return $t->[0] if !defined($sub);
         return $t->[1] if !defined($pred);
         return $t->[2] if !defined($obj);
@@ -203,52 +177,59 @@ sub value
     }
 }
 
-sub load
-{
-    my ($self, $filename) = @ARG;
+sub load {
+    my ( $self, $filename ) = @ARG;
 
     my $csv = Text::CSV_XS->new(
-                      {allow_whitespace => 1, binary => 1, blank_is_undef => 1})
+        { allow_whitespace => 1, binary => 1, blank_is_undef => 1 } )
       or die "Cannot use CSV: " . Text::CSV_XS->error_diag();
 
     open my $fh, "<:encoding(utf8)", $filename or die "$!";
 
-    while (my $row = $csv->getline($fh))
-    {
-        $self->add($row->[0], $row->[1], $row->[2]);
+    while ( my $row = $csv->getline($fh) ) {
+        $self->add( $row->[0], $row->[1], $row->[2] );
     }
 
     close $fh or die "$!";
 }
 
-sub save
-{
-    my ($self, $filename) = @ARG;
+sub load_json {
+    my ( $self, $filename ) = @ARG;
+
+    my $text = read_file($filename) or die "Cannot read_file: $!";
+    my $data = from_json( $text, { utf8 => 1 } );
+
+    for my $t ( @{ $data->{triples} } ) {
+        $self->add( $t->{s}, $t->{p}, $t->{o} );
+    }
+}
+
+sub save {
+    my ( $self, $filename ) = @ARG;
 
     open my $fh, ">", $filename or die "Cannot open file for save: $!";
 
-    my $csv = Text::CSV_XS->new({allow_whitespace => 1, blank_is_undef => 1})
+    my $csv =
+      Text::CSV_XS->new( { allow_whitespace => 1, blank_is_undef => 1 } )
       or die "Cannot use CSV: " . Text::CSV_XS->error_diag();
 
     $csv->eol("\r\n");
-    
-    $csv->print($fh, $_)
-	or csv->error_diag()
-	for $self->triples(undef, undef, undef);
+
+    $csv->print( $fh, $_ )
+      or csv->error_diag()
+      for $self->triples( undef, undef, undef );
 
     close $fh or die "Cannot close file for save: $!";
 }
 
-sub query
-{
-    my ($self, $clauses) = @ARG;
+sub query {
+    my ( $self, $clauses ) = @ARG;
 
     my @bindings;
 
-    my @trpl_inx = (0 .. 2);
+    my @trpl_inx = ( 0 .. 2 );
 
-    for my $clause (@$clauses)
-    {
+    for my $clause (@$clauses) {
         my %bpos;
         my @qparams;
         my @rows;
@@ -263,60 +244,46 @@ sub query
         # Also define parameters for subsequent call to
         # 'triples'.
 
-        my $each = each_array(@$clause, @trpl_inx);
-        while (my ($x, $pos) = $each->())
-        {
-            if ($x =~ /^\?/)
-            {
+        my $each = each_array( @$clause, @trpl_inx );
+        while ( my ( $x, $pos ) = $each->() ) {
+            if ( $x =~ /^\?/ ) {
                 push @qparams, undef;
-                my $key = substr($x, 1);
+                my $key = substr( $x, 1 );
                 $bpos{$key} = $pos;
             }
-            else
-            {
+            else {
                 push @qparams, $x;
             }
         }
 
-        @rows = $self->triples($qparams[0], $qparams[1], $qparams[2]);
-        if (!@bindings)
-        {
-            for my $row (@rows)
-            {
+        @rows = $self->triples( $qparams[0], $qparams[1], $qparams[2] );
+        if ( !@bindings ) {
+            for my $row (@rows) {
                 my %binding;
-                while (my ($var, $pos) = each %bpos)
-                {
+                while ( my ( $var, $pos ) = each %bpos ) {
                     $binding{$var} = $row->[$pos];
                 }
 
                 push @bindings, \%binding;
             }
         }
-        else
-        {
+        else {
             my @newb;
-            for my $binding (@bindings)
-            {
-                for my $row (@rows)
-                {
+            for my $binding (@bindings) {
+                for my $row (@rows) {
                     my $validmatch  = 1;
                     my %tempbinding = %$binding;
-                    while (my ($var, $pos) = each %bpos)
-                    {
-                        if (defined($tempbinding{$var}))
-                        {
-                            if ($tempbinding{$var} ne $row->[$pos])
-                            {
+                    while ( my ( $var, $pos ) = each %bpos ) {
+                        if ( defined( $tempbinding{$var} ) ) {
+                            if ( $tempbinding{$var} ne $row->[$pos] ) {
                                 $validmatch = 0;
                             }
                         }
-                        else
-                        {
+                        else {
                             $tempbinding{$var} = $row->[$pos];
                         }
                     }
-                    if ($validmatch)
-                    {
+                    if ($validmatch) {
                         push @newb, \%tempbinding;
                     }
 
@@ -328,16 +295,15 @@ sub query
     return @bindings;
 }
 
-sub applyinference
-{
-    my ($self, $rule) = @ARG;
+sub applyinference {
+    my ( $self, $rule ) = @ARG;
 
-    my @bindings = $self->query($rule->getqueries());
+    my @bindings = $self->query( $rule->getqueries() );
 
-    for my $binding (@bindings){
-	for my $triple ( @{$rule->maketriples($binding)} ) {
-	    $self->add( @$triple );
-	}
+    for my $binding (@bindings) {
+        for my $triple ( @{ $rule->maketriples($binding) } ) {
+            $self->add(@$triple);
+        }
     }
 
 }
@@ -607,6 +573,24 @@ Given an InferenceRule, generates additional triples in the triple store.
 Loads a csv file in utf8 encoding.
 
     $g->load("some/file.csv");
+
+
+=head2 load_json
+
+Loads a json file into a graph.  The json file should be formated as follows:
+
+{
+    "triples" : [
+        {   "s": "your subject 1",
+            "p": "your predicate 1",
+ 	    "o": "your object 1"
+        }, { "s": "your subject 2",
+            "p": "your predicate 2",
+ 	    "o": "your object 2"
+        }
+     ]
+}
+
 
 =head2 save
  
