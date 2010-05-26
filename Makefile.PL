@@ -19,6 +19,7 @@ WriteMakefile(
 	'Modern::Perl' => 1.03,
 	'LWP::Simple' => 0,
 	'URI::Escape' => 0,
+	'File::Slurp' => 0,
 
     },
     dist                => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },

@@ -1,7 +1,7 @@
 package VANAMBURG::SEMPROG::SimpleGraph;
 
 use vars qw($VERSION);
-$VERSION = '0.009';
+$VERSION = '0.010';
 
 use Moose;
 use Text::CSV_XS;
